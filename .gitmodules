@@ -1,0 +1,6 @@
+[submodule "extern/DiligentCore"]
+	path = extern/DiligentCore
+	url = https://github.com/DiligentGraphics/DiligentCore.git
+[submodule "extern/SDL"]
+	path = extern/SDL
+	url = https://github.com/libsdl-org/SDL.git
