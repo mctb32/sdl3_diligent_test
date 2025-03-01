@@ -10,8 +10,13 @@ project(HelloDiligent CXX)
 add_subdirectory(extern/DiligentCore)
 add_subdirectory(extern/SDL)
 
-add_executable(SdlDiligentTest WIN32 source/main.cpp)
+add_executable(SdlDiligentTest WIN32 source/main.cpp source/diligent_sample.cpp source/diligent_sample.h)
 target_compile_options(SdlDiligentTest PRIVATE -DUNICODE)
+
+if(TARGET SDL2::SDL2main)
+    # It has an implicit dependency on SDL2 functions, so it MUST be added before SDL2::SDL2 (or SDL2::SDL2-static)
+    target_link_libraries(SdlDiligentTest PRIVATE SDL2::SDL2main)
+endif()
 
 target_link_libraries(SdlDiligentTest
 PRIVATE
@@ -20,7 +25,7 @@ PRIVATE
     Diligent-GraphicsEngineD3D12-shared
     Diligent-GraphicsEngineVk-shared
     Diligent-Common
-    SDL3::SDL3
+    SDL2::SDL2
 )
 
 if(WIN32)
