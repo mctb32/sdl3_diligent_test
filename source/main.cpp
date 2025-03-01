@@ -25,6 +25,8 @@ int main(int argc, char *argv[])
 	DiligentSample diligent(device,	SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL));
 	diligent.InitPipeline();
 
+	std::cout << "Running...\n";
+
 	// Main loop
 	bool running = true;
 	SDL_Event event;
@@ -43,6 +45,7 @@ int main(int argc, char *argv[])
 
 		diligent.Render();
 		SDL_Delay(10);
+		std::cout << "Next frame...\n";
 	}
 
 	// Clean up resources.
