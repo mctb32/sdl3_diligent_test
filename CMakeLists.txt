@@ -10,7 +10,7 @@ project(HelloDiligent CXX)
 add_subdirectory(extern/DiligentCore)
 add_subdirectory(extern/SDL)
 
-add_executable(SdlDiligentTest WIN32 source/main.cpp)
+add_executable(SdlDiligentTest WIN32 source/main.cpp source/diligent_sample.cpp)
 target_compile_options(SdlDiligentTest PRIVATE -DUNICODE)
 
 target_link_libraries(SdlDiligentTest
