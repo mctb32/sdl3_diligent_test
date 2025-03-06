@@ -37,5 +37,9 @@ private:
 	ISwapChain *m_pSwapChain = nullptr;
 	RENDER_DEVICE_TYPE m_DeviceType = RENDER_DEVICE_TYPE_UNDEFINED;
 	IPipelineState *m_pPSO = nullptr;
+	Uint32       m_AdapterId = DEFAULT_ADAPTER_ID;
+	ADAPTER_TYPE m_AdapterType = ADAPTER_TYPE_UNKNOWN;
+	std::string  m_AdapterDetailsString;
+	GraphicsAdapterInfo  m_AdapterAttribs;
 
 };

@@ -1,4 +1,5 @@
 #include "diligent_sample.h"
+#include <vector>
 
 DiligentSample::DiligentSample(RENDER_DEVICE_TYPE dev_type, void *native_wnd)
 {
@@ -8,6 +9,86 @@ DiligentSample::DiligentSample(RENDER_DEVICE_TYPE dev_type, void *native_wnd)
 	sc_desc.IsPrimary = true;
 	sc_desc.BufferCount = 2;
 	Win32NativeWindow Window{ native_wnd };
+
+#if D3D11_SUPPORTED || D3D12_SUPPORTED || VULKAN_SUPPORTED
+	auto FindAdapter = [this](auto *pFactory, Version GraphicsAPIVersion, GraphicsAdapterInfo &AdapterAttribs) {
+		Uint32 NumAdapters = 0;
+		pFactory->EnumerateAdapters(GraphicsAPIVersion, NumAdapters, nullptr);
+		std::vector<GraphicsAdapterInfo> Adapters(NumAdapters);
+		if (NumAdapters > 0)
+			pFactory->EnumerateAdapters(GraphicsAPIVersion, NumAdapters, Adapters.data());
+		else
+			LOG_ERROR_AND_THROW("Failed to find compatible hardware adapters");
+
+		auto AdapterId = m_AdapterId;
+		if (AdapterId != DEFAULT_ADAPTER_ID)
+		{
+			if (AdapterId < Adapters.size())
+			{
+				m_AdapterType = Adapters[AdapterId].Type;
+			}
+			else
+			{
+				LOG_ERROR_MESSAGE("Adapter ID (", AdapterId, ") is invalid. Only ", Adapters.size(), " compatible ", (Adapters.size() == 1 ? "adapter" : "adapters"), " present in the system");
+				AdapterId = DEFAULT_ADAPTER_ID;
+			}
+		}
+
+		if (AdapterId == DEFAULT_ADAPTER_ID && m_AdapterType != ADAPTER_TYPE_UNKNOWN)
+		{
+			for (Uint32 i = 0; i < Adapters.size(); ++i)
+			{
+				if (Adapters[i].Type == m_AdapterType)
+				{
+					AdapterId = i;
+					break;
+				}
+			}
+			if (AdapterId == DEFAULT_ADAPTER_ID)
+				LOG_WARNING_MESSAGE("Unable to find the requested adapter type. Using default adapter.");
+		}
+
+		if (AdapterId == DEFAULT_ADAPTER_ID)
+		{
+			m_AdapterType = ADAPTER_TYPE_UNKNOWN;
+			for (Uint32 i = 0; i < Adapters.size(); ++i)
+			{
+				const auto &AdapterInfo = Adapters[i];
+				const auto  AdapterType = AdapterInfo.Type;
+				static_assert((ADAPTER_TYPE_DISCRETE > ADAPTER_TYPE_INTEGRATED &&
+					ADAPTER_TYPE_INTEGRATED > ADAPTER_TYPE_SOFTWARE &&
+					ADAPTER_TYPE_SOFTWARE > ADAPTER_TYPE_UNKNOWN),
+					"Unexpected ADAPTER_TYPE enum ordering");
+				if (AdapterType > m_AdapterType)
+				{
+					// Prefer Discrete over Integrated over Software
+					m_AdapterType = AdapterType;
+					AdapterId = i;
+				}
+				else if (AdapterType == m_AdapterType)
+				{
+					// Select adapter with more memory
+					const auto &NewAdapterMem = AdapterInfo.Memory;
+					const auto  NewTotalMemory = NewAdapterMem.LocalMemory + NewAdapterMem.HostVisibleMemory + NewAdapterMem.UnifiedMemory;
+					const auto &CurrAdapterMem = Adapters[AdapterId].Memory;
+					const auto  CurrTotalMemory = CurrAdapterMem.LocalMemory + CurrAdapterMem.HostVisibleMemory + CurrAdapterMem.UnifiedMemory;
+					if (NewTotalMemory > CurrTotalMemory)
+					{
+						AdapterId = i;
+					}
+				}
+			}
+		}
+
+		if (AdapterId != DEFAULT_ADAPTER_ID)
+		{
+			AdapterAttribs = Adapters[AdapterId];
+			LOG_INFO_MESSAGE("Using adapter ", AdapterId, ": '", AdapterAttribs.Description, "'");
+		}
+
+		return AdapterId;
+		};
+#endif
 
 	switch (m_DeviceType)
 	{
@@ -56,6 +137,7 @@ DiligentSample::DiligentSample(RENDER_DEVICE_TYPE dev_type, void *native_wnd)
 #endif
 		auto *pFactoryVk = GetEngineFactoryVk();
 		EngineVkCreateInfo EngineCI;
+		EngineCI.AdapterId = FindAdapter(pFactoryVk, EngineCI.GraphicsAPIVersion, m_AdapterAttribs);
 		pFactoryVk->CreateDeviceAndContextsVk(EngineCI, &m_pDevice, &m_pImmediateContext);
 		pFactoryVk->CreateSwapChainVk(m_pDevice, m_pImmediateContext, sc_desc, Window, &m_pSwapChain);
 	} break;
@@ -182,20 +264,27 @@ bool DiligentSample::InitPipeline()
 
 void DiligentSample::Render()
 {
+	//std::cout << "Render... 1\n";
 	ITextureView *pRTV = m_pSwapChain->GetCurrentBackBufferRTV();
 	ITextureView *pDSV = m_pSwapChain->GetDepthBufferDSV();
 	m_pImmediateContext->SetRenderTargets(1, &pRTV, pDSV, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
+	//std::cout << "Render... 2\n";
 	const float ClearColor[] = { 0.350f,  0.350f,  0.350f, 1.0f };
 	m_pImmediateContext->ClearRenderTarget(pRTV, ClearColor, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 	m_pImmediateContext->ClearDepthStencil(pDSV, CLEAR_DEPTH_FLAG, 1.f, 0, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+	//std::cout << "Render... 3\n";
 
 	m_pImmediateContext->SetPipelineState(m_pPSO);
 	// Typically we should now call CommitShaderResources(), however shaders in this example don't
 	// use any resources.
+	//std::cout << "Render... 4\n";
 	DrawAttribs drawAttrs;
 	drawAttrs.NumVertices = 3; // We will render 3 vertices
 	m_pImmediateContext->Draw(drawAttrs);
 
-	m_pSwapChain->Present(1);
+	//std::cout << "Render... 5\n";
+
+	m_pSwapChain->Present(0);
+	//std::cout << "Render... 6\n";
 }
